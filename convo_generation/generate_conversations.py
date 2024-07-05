@@ -7,14 +7,14 @@ from datetime import datetime
 import time
 import argparse
 import pandas as pd
+import openai
 
 sys.path.append(os.path.join(sys.path[0], '..'))
 sys.path.append(os.path.join(sys.path[0], '../..'))
-from openai import AzureOpenAI
 from convo_generation.sim_thread import SimThread
 
 # Load environment variables
-load_dotenv('.env')
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s: %(message)s')
@@ -45,14 +45,9 @@ pipeline_run_time_utc = datetime.utcnow()
 run_id = pipeline_run_time_utc.strftime('%Y%m%dT%H%M%S')
 
 assert OPENAI_API_KEY is not None, 'OpenAI API Key must be present in env variables'
-oai_endpoint = os.getenv('OAI_ENDPOINT')
 
-# Connect to OpenAI model
-openai_client = AzureOpenAI(
-    api_key=OPENAI_API_KEY,
-    api_version="2023-05-15",
-    azure_endpoint=f"https://{oai_endpoint}.openai.azure.com/"
-)
+# Set up OpenAI API key
+openai.api_key = OPENAI_API_KEY
 
 with open(os.path.join('..', 'prompts', 'dbt_system.prompt'), 'r', encoding='utf-8') as f:
     dbt_system_prompt = f.read()
@@ -63,7 +58,7 @@ with open(os.path.join('..', 'prompts', 'user_impersonation.prompt'), 'r', encod
 def simulate_conversation(initial_prompt: str):
     try:
         logger.info(f'Starting conversation simulation for prompt: {initial_prompt}')
-        st = SimThread(openai_client, dbt_system_prompt, None, persona_prompt, initial_prompt, 'dbt', convo_n_msgs, 10000)
+        st = SimThread(openai, dbt_system_prompt, None, persona_prompt, initial_prompt, 'dbt', convo_n_msgs, 10000)
         st.run_thread(verbose=DEBUG)
         logger.info(f'Conversation simulation completed for prompt: {initial_prompt}')
         return st

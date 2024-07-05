@@ -12,6 +12,7 @@ import discord
 import tiktoken
 
 
+
 sys.path.append(os.path.join(sys.path[0], '..'))
 sys.path.append(os.path.join(sys.path[0], '../..'))
 from convo_generation.sim_thread import SimThread

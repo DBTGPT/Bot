@@ -6,8 +6,6 @@ from openai import OpenAI
 import discord
 import tiktoken
 
-
-
 # Load environment variables
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
@@ -176,11 +174,11 @@ class SimThread:
 
         else:
             try:
-                response = OpenAI.ChatCompletion.create(
+                response = self.client.chat.completions.create(
                     model=MODEL_DEPLOYMENT,
                     messages=self.get_msgs_from_pov(self.next_to_respond)
                 )
-                msg_txt = response.choices[0].message['content']
+                msg_txt = response.choices[0].message.content
                 msg = {'role': self.next_to_respond, 'content': msg_txt}
                 self.thread_msgs.append(msg)
                 agent_info['n_msgs'] += 1

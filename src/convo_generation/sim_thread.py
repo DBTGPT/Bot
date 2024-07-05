@@ -1,8 +1,12 @@
 import logging
 import sys
 import os
-from openai import AzureOpenAI
+from openai import OpenAI
 import tiktoken
+
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 sys.path.append(os.path.join(sys.path[0], '../..'))
 
@@ -11,12 +15,14 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s: %(message)s'
 logger = logging.getLogger('sim_thread')
 logger.setLevel(logging.INFO)
 
-MODEL_DEPLOYMENT = os.getenv('MODEL_DEPLOYMENT', 'gpt4-1106')
+MODEL_DEPLOYMENT = os.getenv('MODEL_DEPLOYMENT', 'gpt-4')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', None)
+assert OPENAI_API_KEY is not None, 'OpenAI API Key must be present in env variables'
 
 class SimThread:
     def __init__(
             self,
-            client: AzureOpenAI,
+            client: OpenAI,
             dbt_system_prompt: str = '',
             dbt_initial_msg: str = None, 
             persona_system_prompt: str = '',
@@ -166,19 +172,19 @@ class SimThread:
 
         else:
             try:
-                response = self.client.chat.completions.create(
+                response = self.client.ChatCompletion.create(
                     model=MODEL_DEPLOYMENT,
                     messages=self.get_msgs_from_pov(self.next_to_respond)
                 )
-                msg_txt = response.choices[0].message.content
+                msg_txt = response.choices[0].message['content']
                 msg = {'role': self.next_to_respond, 'content': msg_txt}
                 self.thread_msgs.append(msg)
                 agent_info['n_msgs'] += 1
                 agent_info['n_msgs_generated'] += 1
-                agent_info['token_length'] += response.usage.completion_tokens
-                agent_info['tokens_processed'] += response.usage.total_tokens
-                agent_info['tokens_prompted'] += response.usage.prompt_tokens
-                agent_info['tokens_completed'] += response.usage.completion_tokens
+                agent_info['token_length'] += response.usage['completion_tokens']
+                agent_info['tokens_processed'] += response.usage['total_tokens']
+                agent_info['tokens_prompted'] += response.usage['prompt_tokens']
+                agent_info['tokens_completed'] += response.usage['completion_tokens']
                 logger.info(f"Message sent by {self.next_to_respond}: {msg_txt}")
             except Exception as e:
                 logger.error(f"Error generating response for {self.next_to_respond}")

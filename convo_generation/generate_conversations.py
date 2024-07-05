@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 import pickle
 import logging
 from dotenv import load_dotenv
@@ -12,18 +13,19 @@ sys.path.append(os.path.join(sys.path[0], '../..'))
 from openai import AzureOpenAI
 from convo_generation.sim_thread import SimThread
 
+# Load environment variables
 load_dotenv('.env')
+
+# Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s: %(message)s')
 logger = logging.getLogger('generate_conversation')
 logger.setLevel(logging.INFO)
-
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', None)
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'DEVELOPMENT')
 DEBUG = os.getenv('DEBUG', 'false')
 
 DEBUG = True if DEBUG.lower() == 'true' else False
-
 
 parser = argparse.ArgumentParser()
 
@@ -39,7 +41,6 @@ convo_limit = int(args.limit) if args.limit else None
 convo_n_msgs = int(args.n_msgs) if args.n_msgs else None
 outfile = os.path.join('output', args.output)
 
-
 pipeline_run_time_utc = datetime.utcnow()
 run_id = pipeline_run_time_utc.strftime('%Y%m%dT%H%M%S')
 
@@ -48,9 +49,9 @@ oai_endpoint = os.getenv('OAI_ENDPOINT')
 
 # Connect to OpenAI model
 openai_client = AzureOpenAI(
-    api_key = OPENAI_API_KEY,
-    api_version = "2023-05-15",
-    azure_endpoint = f"https://{oai_endpoint}.openai.azure.com/"
+    api_key=OPENAI_API_KEY,
+    api_version="2023-05-15",
+    azure_endpoint=f"https://{oai_endpoint}.openai.azure.com/"
 )
 
 with open(os.path.join('..', 'prompts', 'dbt_system.prompt'), 'r', encoding='utf-8') as f:
@@ -59,19 +60,21 @@ with open(os.path.join('..', 'prompts', 'dbt_system.prompt'), 'r', encoding='utf
 with open(os.path.join('..', 'prompts', 'user_impersonation.prompt'), 'r', encoding='utf-8') as f:
     persona_prompt = f.read()
 
-
-
 def simulate_conversation(initial_prompt: str):
-    st = SimThread(openai_client, dbt_system_prompt, None, persona_prompt, initial_prompt, 'dbt', convo_n_msgs, 10000)
-    st.run_thread(verbose=DEBUG)
-    # st.extend_thread(4, verbose=True)
-    return st
-
+    try:
+        logger.info(f'Starting conversation simulation for prompt: {initial_prompt}')
+        st = SimThread(openai_client, dbt_system_prompt, None, persona_prompt, initial_prompt, 'dbt', convo_n_msgs, 10000)
+        st.run_thread(verbose=DEBUG)
+        logger.info(f'Conversation simulation completed for prompt: {initial_prompt}')
+        return st
+    except Exception as e:
+        logger.error(f'Error during conversation simulation for prompt: {initial_prompt}')
+        logger.exception(e)
+        raise
 
 def main():
     # Get the input prompts
     logger.info('Reading unique prompts')
-
     seed_prompts = pd.read_csv('../data/prompts_with_ids.tsv', delimiter='\t')
     convo_ids = list(seed_prompts['id'])
     seed_prompts = list(seed_prompts['Initial Message'])
@@ -89,7 +92,6 @@ def main():
 
     for i, initial_prompt in enumerate(seed_prompts):
         try:
-
             initial_prompt = initial_prompt.strip()
             convo_id = convo_ids[i]
             logger.info(f'Running prompt {convo_id}')
@@ -118,13 +120,12 @@ def main():
 
             logger.info(f'Elapsed time: {elapsed_time}')
         except Exception as e:
-            logger.error(f'Failed to process prompt {i+1}')
+            logger.error(f'Failed to process prompt {convo_id}')
             logger.exception(e)
 
     with open(outfile, 'wb') as f:
         pickle.dump(results, f)
     logger.info('Done')
-
 
 if __name__ == '__main__':
     main()

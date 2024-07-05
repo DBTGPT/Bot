@@ -1,8 +1,12 @@
 import logging
 import sys
 import os
+from datetime import datetime, timezone
 from openai import OpenAI
+import discord
 import tiktoken
+
+
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -172,7 +176,7 @@ class SimThread:
 
         else:
             try:
-                response = self.client.ChatCompletion.create(
+                response = OpenAI.ChatCompletion.create(
                     model=MODEL_DEPLOYMENT,
                     messages=self.get_msgs_from_pov(self.next_to_respond)
                 )
@@ -209,3 +213,22 @@ class SimThread:
         assert n_msgs > 0
         for i in range(n_msgs):
             self._vprint_msg(self.next_response(), verbose)
+
+if __name__ == "__main__":
+    output_dir = os.path.join(os.getcwd(), 'output')
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Example usage:
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
+    sim_thread = SimThread(
+        client=openai_client,
+        dbt_system_prompt='Your DBT system prompt here',
+        persona_system_prompt='Your Persona system prompt here',
+        dbt_initial_msg='Initial message for DBT',
+        persona_initial_msg='Initial message for Persona',
+        initiator='dbt',
+        thread_msg_limit=20,
+        thread_token_length_limit=20000
+    )
+    sim_thread.run_thread(verbose=True)

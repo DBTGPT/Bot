@@ -7,7 +7,10 @@ from datetime import datetime
 import time
 import argparse
 import pandas as pd
-import openai
+from openai import OpenAI  # Updated import
+import discord
+import tiktoken
+
 
 sys.path.append(os.path.join(sys.path[0], '..'))
 sys.path.append(os.path.join(sys.path[0], '../..'))
@@ -46,8 +49,8 @@ run_id = pipeline_run_time_utc.strftime('%Y%m%dT%H%M%S')
 
 assert OPENAI_API_KEY is not None, 'OpenAI API Key must be present in env variables'
 
-# Set up OpenAI API key
-openai.api_key = OPENAI_API_KEY
+# Set up OpenAI API client
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 with open(os.path.join('..', 'prompts', 'dbt_system.prompt'), 'r', encoding='utf-8') as f:
     dbt_system_prompt = f.read()
@@ -58,7 +61,7 @@ with open(os.path.join('..', 'prompts', 'user_impersonation.prompt'), 'r', encod
 def simulate_conversation(initial_prompt: str):
     try:
         logger.info(f'Starting conversation simulation for prompt: {initial_prompt}')
-        st = SimThread(openai, dbt_system_prompt, None, persona_prompt, initial_prompt, 'dbt', convo_n_msgs, 10000)
+        st = SimThread(client, dbt_system_prompt, None, persona_prompt, initial_prompt, 'dbt', convo_n_msgs, 10000)
         st.run_thread(verbose=DEBUG)
         logger.info(f'Conversation simulation completed for prompt: {initial_prompt}')
         return st

@@ -1,34 +1,36 @@
-import discord
 import os
-import logging
+import discord
+from discord.ext import commands
+from dotenv import load_dotenv
+import openai
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+load_dotenv()
 
-# Set up intents
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OAI_ENDPOINT = os.getenv('OAI_ENDPOINT')
+MODEL_DEPLOYMENT = os.getenv('MODEL_DEPLOYMENT')
+
 intents = discord.Intents.default()
-intents.messages = True
 intents.message_content = True
 
-# Create the bot client
-client = discord.Client(intents=intents)
+bot = commands.Bot(command_prefix='!', intents=intents)
 
-@client.event
+openai.api_key = OPENAI_API_KEY
+openai.api_base = f"https://{OAI_ENDPOINT}.openai.azure.com/"
+openai.api_version = '2023-05-15'
+
+@bot.event
 async def on_ready():
-    logging.info(f'Logged in as {client.user}')
+    print(f'Bot is ready. Logged in as {bot.user}')
 
-@client.event
-async def on_message(message):
-    # Prevent the bot from replying to itself
-    if message.author == client.user:
-        return
+@bot.command(name='chat')
+async def chat(ctx, *, message: str):
+    response = openai.Completion.create(
+        engine=MODEL_DEPLOYMENT,
+        prompt=message,
+        max_tokens=150
+    )
+    await ctx.send(response.choices[0].text.strip())
 
-    logging.info(f'Received message: {message.content} from {message.author}')
-
-    # Respond to "hello" messages
-    if message.content.lower().startswith('hello'):
-        await message.channel.send('Hello! How can I assist you today?')
-
-# Run the bot with the token from environment variables
-token = os.getenv('DISCORD_TOKEN')
-client.run(token)
+bot.run(DISCORD_TOKEN)

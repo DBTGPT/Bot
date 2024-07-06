@@ -18,7 +18,7 @@ sys.path.append(os.path.join(sys.path[0], '../..'))
 from convo_generation.sim_thread import SimThread
 
 # Load environment variables
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s: %(message)s')

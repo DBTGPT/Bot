@@ -8,8 +8,11 @@ import azure.cognitiveservices.speech as speechsdk
 app = Flask(__name__)
 
 # Load environment variables
+# Load environment variables
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
+azure_tts_key = os.getenv("AZURE_TTS_KEY")
+azure_region = os.getenv("AZURE_REGION")
 
 # Instantiate the OpenAI client
 client = OpenAI(api_key=api_key)

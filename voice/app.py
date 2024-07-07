@@ -1,35 +1,68 @@
-from flask import Flask, request, jsonify, render_template
-import openai
-from dotenv import load_dotenv
+from flask import Flask, request, jsonify, send_from_directory, render_template
+from openai import OpenAI
 import os
-
-load_dotenv()  # Load environment variables from .env file
+from dotenv import load_dotenv
+from pathlib import Path
+import azure.cognitiveservices.speech as speechsdk
 
 app = Flask(__name__)
 
-openai.api_key = os.getenv('OPENAI_API_KEY')
-print(f"Loaded API Key: {openai.api_key}")  # Verify API Key is loaded
+# Load environment variables
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
+
+# Instantiate the OpenAI client
+client = OpenAI(api_key=api_key)
 
 @app.route('/')
 def home():
     return render_template('index.html')
 
+@app.route('/generate', methods=['POST'])
+def generate_text():
+    data = request.json
+    prompt = data.get('prompt')
+    if not prompt:
+        return jsonify({'error': 'No prompt provided'}), 400
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    return jsonify({'response': response.choices[0].message['content']})
+
 @app.route('/api/get-response', methods=['POST'])
 def get_response():
-    user_message = request.json.get('message')
-    print(f"User Message: {user_message}")  # Log the user message
     try:
-        response = openai.Completion.create(
-            model='text-davinci-003',  # Use the latest model version
-            prompt=user_message,
-            max_tokens=100
+        user_message = request.json.get('message')
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": user_message}
+            ]
         )
-        print(f"API Response: {response}")  # Log the API response
-        bot_response = response['choices'][0]['text'].strip()
-        return jsonify({'response': bot_response})
-    except Exception as e:
-        print(f"Error generating response: {e}")
-        return jsonify({'error': 'Error generating response'}), 500
+        bot_response = response.choices[0].message.content  # Corrected access to message content
+        audio_path = generate_tts(bot_response)
+        return jsonify({'bot_response': bot_response, 'audio_path': audio_path})
+
+    except OpenAI.error.OpenAIError as e:  # Corrected error handling
+        return jsonify({'error': 'An error occurred: {}'.format(str(e))}), 500
+
+def generate_tts(text):
+    speech_config = speechsdk.SpeechConfig(subscription=azure_tts_key, region=azure_region)
+    audio_config = speechsdk.audio.AudioOutputConfig(filename="static/tts_output.mp3")
+
+    synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+    result = synthesizer.speak_text_async(text).get()
+
+    if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+        return str(Path("static/tts_output.mp3"))
+    else:
+        raise Exception("Error synthesizing audio")
 
 if __name__ == '__main__':
     app.run(debug=True)

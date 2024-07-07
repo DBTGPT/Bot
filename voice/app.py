@@ -20,7 +20,7 @@ def get_response():
     print(f"User Message: {user_message}")  # Log the user message
     try:
         response = openai.Completion.create(
-            model='text-davinci-003',  # Update to a supported model
+            model='text-davinci-003',  # Use the latest model version
             prompt=user_message,
             max_tokens=100
         )

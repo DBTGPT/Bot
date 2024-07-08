@@ -28,21 +28,22 @@ logging.debug(f"Azure Service Region: {service_region}")
 def synthesize_speech(text):
     try:
         speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
-        speech_config.speech_synthesis_voice_name = "en-US-JennyNeural"  # Example of a neural voice
-        audio_config = speechsdk.audio.AudioOutputConfig(use_default_speaker=True)
-        synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+        speech_config.speech_synthesis_voice_name = "en-US-JennyNeural"
+        audio_config = speechsdk.audio.AudioOutputConfig(filename="static/tts_output.mp3")
 
-        # Synthesize the text to speech
+        synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
         result = synthesizer.speak_text_async(text).get()
+
         if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
             logging.debug("Speech synthesized successfully.")
-        elif result.reason == speechsdk.ResultReason.Canceled:
-            cancellation_details = result.cancellation_details
-            logging.error(f"Speech synthesis canceled: {cancellation_details.reason}")
-            if cancellation_details.reason == speechsdk.CancellationReason.Error:
-                logging.error(f"Error details: {cancellation_details.error_details}")
+            return "static/tts_output.mp3"
+        else:
+            logging.error(f"Error synthesizing audio: {result.reason}")
+            return None
     except Exception as e:
         logging.error(f"Exception in synthesize_speech: {e}")
+        return None
+
 
 @app.route('/')
 def home():
@@ -62,11 +63,14 @@ def get_response():
             ],
             max_tokens=100
         )
-        print(f"API Response: {response}")  # Log the API response
+        logging.debug(f"API Response: {response}")
+        
         bot_response = response.choices[0].message.content.strip()
-        return jsonify({'response': bot_response})
+        audio_path = synthesize_speech(bot_response)
+
+        return jsonify({'response': bot_response, 'audio_path': audio_path})
     except Exception as e:
-        print(f"Error generating response: {e}")
+        logging.error(f"Error generating response: {e}")
         return jsonify({'error': 'Error generating response'}), 500
 
 

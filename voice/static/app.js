@@ -45,7 +45,7 @@ function getBotResponse(message) {
         if (data.response) {
             const botMessage = data.response;
             displayMessage("Bot", botMessage);
-            speak(botMessage);
+            playAudioResponse(data.audio_path);  // Play the audio file
         } else {
             displayMessage("Bot", "Sorry, I couldn't understand that. Could you please repeat?");
         }
@@ -55,6 +55,13 @@ function getBotResponse(message) {
         displayMessage("Bot", "There was an error processing your request. Please try again.");
     });
 }
+
+function playAudioResponse(audioPath) {
+    const audioElement = document.getElementById("tts-audio");
+    audioElement.src = audioPath;  // Ensure the path is correctly received
+    audioElement.play();
+}
+
 
 function startVoiceRecognition() {
     recognition.start();

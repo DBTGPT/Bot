@@ -47,10 +47,12 @@ function getBotResponse(message) {
         if (data.response) {
             const botMessage = data.response;
             displayMessage("Bot", botMessage);
-            if (data.audio_path) {
-                playAudioResponse(data.audio_path);  // Play the audio file
-            } else {
-                speak(botMessage);  // Fallback to speak function if audio path is not available
+            if (isRecognizing) {
+                if (data.audio_path) {
+                    playAudioResponse(data.audio_path);  // Play the audio file
+                } else {
+                    speak(botMessage);  // Fallback to speak function if audio path is not available
+                }
             }
         } else {
             displayMessage("Bot", "Sorry, I couldn't understand that. Could you please repeat?");

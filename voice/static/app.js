@@ -4,6 +4,7 @@ let currentAudioElement = null;  // Track the current audio element
 
 document.addEventListener("DOMContentLoaded", () => {
     greetUser();
+    document.getElementById("user-input").focus();
 });
 
 function greetUser() {
@@ -15,6 +16,8 @@ function greetUser() {
 function displayMessage(sender, message) {
     const chatWindow = document.getElementById("chat-window");
     const messageElement = document.createElement("div");
+    messageElement.classList.add("message");
+    messageElement.classList.add(sender.toLowerCase());
     messageElement.textContent = `${sender}: ${message}`;
     chatWindow.appendChild(messageElement);
     chatWindow.scrollTop = chatWindow.scrollHeight;
@@ -99,16 +102,15 @@ function speak(text) {
 }
 
 function startVoiceRecognition() {
-    const talkButton = document.querySelector("button[onclick='startVoiceRecognition()']");
+    const talkButton = document.getElementById("talk-button");
     if (isRecognizing) {
         recognition.stop();
         isRecognizing = false;
-        talkButton.textContent = "Talk";
-        togglePause();
+        talkButton.classList.remove("blinking");
     } else {
         recognition.start();
         isRecognizing = true;
-        talkButton.textContent = "Pause";
+        talkButton.classList.add("blinking");
     }
 }
 

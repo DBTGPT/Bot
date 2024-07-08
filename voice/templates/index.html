@@ -5,13 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voice Therapy Chatbot</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 </head>
 <body>
     <div id="chat-container">
         <div id="chat-window"></div>
-        <input type="text" id="user-input" placeholder="Type your message here...">
-        <button onclick="sendText()">Send</button>
-        <button onclick="startVoiceRecognition()">Talk</button>
+        <div id="input-container">
+            <input type="text" id="user-input" placeholder="Type your message here..." aria-label="User message input">
+            <button onclick="sendText()" aria-label="Send text message">Send</button>
+            <button id="talk-button" onclick="startVoiceRecognition()" aria-label="Start voice recognition">
+                <i class="fas fa-microphone"></i>
+            </button>
+        </div>
     </div>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>

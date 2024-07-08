@@ -1,25 +1,112 @@
-#chat-container {
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    margin: 0;
+    padding: 0;
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     height: 100vh;
 }
 
-#chat-window {
-    width: 80%;
-    height: 70vh;
+#chat-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 90%;
+    max-width: 600px;
+    height: 80vh;
     border: 1px solid #ccc;
-    overflow-y: scroll;
+    border-radius: 10px;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+#chat-window {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+    border-bottom: 1px solid #ccc;
+}
+
+.message {
+    margin: 10px 0;
     padding: 10px;
-    margin-bottom: 10px;
+    border-radius: 10px;
+    max-width: 80%;
+    clear: both;
+}
+
+.message.user {
+    background-color: #d1e7dd;
+    align-self: flex-end;
+}
+
+.message.bot {
+    background-color: #f8d7da;
+    align-self: flex-start;
+}
+
+#input-container {
+    display: flex;
+    padding: 10px;
+    background-color: #f4f4f9;
+    border-top: 1px solid #ccc;
 }
 
 #user-input {
-    width: 70%;
-    margin-right: 10px;
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
 }
 
 button {
-    margin-top: 10px;
+    margin-left: 10px;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+}
+
+button[aria-label="Talk"] {
+    background-color: #28a745;
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+#talk-button {
+    position: relative;
+}
+
+#talk-button.blinking {
+    background-color: transparent;
+    border: none;
+}
+
+#talk-button.blinking .fas.fa-microphone {
+    display: none;
+}
+
+#talk-button.blinking::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    background-color: red;
+    border-radius: 50%;
+    animation: blink 1s infinite;
+    transform: translate(-50%, -50%);
+}
+
+@keyframes blink {
+    0%, 50%, 100% { opacity: 1; }
+    25%, 75% { opacity: 0; }
 }

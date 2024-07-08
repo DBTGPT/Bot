@@ -1,5 +1,6 @@
 const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 let isRecognizing = false;
+let currentAudioElement = null;  // Track the current audio element
 
 document.addEventListener("DOMContentLoaded", () => {
     greetUser();
@@ -61,25 +62,30 @@ function getBotResponse(message) {
 }
 
 function playAudioResponse(audioPath) {
+    // Force a fresh fetch of the audio file by appending a timestamp
+    const uniqueAudioPath = audioPath + "?t=" + new Date().getTime();
+
     // Remove any existing audio element
-    const existingAudioElement = document.getElementById("tts-audio");
-    if (existingAudioElement) {
-        existingAudioElement.parentNode.removeChild(existingAudioElement);
+    if (currentAudioElement) {
+        currentAudioElement.pause();
+        currentAudioElement.parentNode.removeChild(currentAudioElement);
     }
 
     // Create a new audio element
     const audioElement = document.createElement("audio");
     audioElement.id = "tts-audio";
-    audioElement.src = audioPath;
+    audioElement.src = uniqueAudioPath;
     audioElement.autoplay = true;
     audioElement.onended = () => {
         console.log("Audio playback ended.");
+        currentAudioElement = null;  // Clear the reference when done
     };
 
     // Append the new audio element to the body
     document.body.appendChild(audioElement);
+    currentAudioElement = audioElement;  // Update the reference to the current audio element
 
-    console.log("Audio element created and playback started.");
+    console.log("Audio element created and playback started with path:", uniqueAudioPath);
 }
 
 function speak(text) {
@@ -91,14 +97,23 @@ function speak(text) {
 }
 
 function startVoiceRecognition() {
+    const talkButton = document.querySelector("button[onclick='startVoiceRecognition()']");
     if (isRecognizing) {
         recognition.stop();
         isRecognizing = false;
-        document.querySelector("button[onclick='startVoiceRecognition()']").textContent = "Talk";
+        talkButton.textContent = "Talk";
     } else {
         recognition.start();
         isRecognizing = true;
-        document.querySelector("button[onclick='startVoiceRecognition()']").textContent = "Pause";
+        talkButton.textContent = "Pause";
+    }
+}
+
+function togglePause() {
+    if (currentAudioElement) {
+        currentAudioElement.pause();
+        currentAudioElement.parentNode.removeChild(currentAudioElement);
+        currentAudioElement = null;
     }
 }
 

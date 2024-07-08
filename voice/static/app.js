@@ -1,27 +1,15 @@
-const speechSynthesis = window.speechSynthesis;
 const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-
 let isRecognizing = false;
-let isSpeaking = false;
-let currentUtterance = null;
+let currentAudioElement = null;  // Track the current audio element
 
 document.addEventListener("DOMContentLoaded", () => {
     greetUser();
-
-    document.getElementById("talk-button").addEventListener("click", toggleVoiceRecognition);
-    document.getElementById("pause-button").addEventListener("click", toggleSpeechSynthesis);
 });
 
 function greetUser() {
     const greeting = "Hello, how are you doing today?";
-    speak(greeting);
     displayMessage("Bot", greeting);
-}
-
-function speak(text) {
-    currentUtterance = new SpeechSynthesisUtterance(text);
-    speechSynthesis.speak(currentUtterance);
-    isSpeaking = true;
+    speak(greeting);
 }
 
 function displayMessage(sender, message) {
@@ -37,10 +25,12 @@ function sendText() {
     if (userInput) {
         displayMessage("User", userInput);
         getBotResponse(userInput);
+        document.getElementById("user-input").value = '';  // Clear input field after sending
     }
 }
 
 function getBotResponse(message) {
+    console.log("Sending message to server:", message);  // Log the message
     fetch('/api/get-response', {
         method: 'POST',
         headers: {
@@ -50,10 +40,17 @@ function getBotResponse(message) {
     })
     .then(response => response.json())
     .then(data => {
+        console.log("Parsed server response:", data);  // Log the parsed server response
         if (data.response) {
             const botMessage = data.response;
-            displayMessage("Bot", botMessage);
-            speak(botMessage);
+            displayMessage("Bot", botMessage);  // Ensure the message is displayed first
+            if (data.audio_path) {
+                console.log("Playing audio response from:", data.audio_path);
+                playAudioResponse(data.audio_path);  // Play the audio file
+            } else {
+                console.log("No audio path provided, using TTS.");
+                speak(botMessage);  // Fallback to speak function if audio path is not available
+            }
         } else {
             displayMessage("Bot", "Sorry, I couldn't understand that. Could you please repeat?");
         }
@@ -64,41 +61,72 @@ function getBotResponse(message) {
     });
 }
 
+function playAudioResponse(audioPath) {
+    // Force a fresh fetch of the audio file by appending a timestamp
+    const uniqueAudioPath = audioPath + "?t=" + new Date().getTime();
+
+    // Remove any existing audio element
+    if (currentAudioElement) {
+        currentAudioElement.pause();
+        currentAudioElement.parentNode.removeChild(currentAudioElement);
+    }
+
+    // Create a new audio element
+    const audioElement = document.createElement("audio");
+    audioElement.id = "tts-audio";
+    audioElement.src = uniqueAudioPath;
+    audioElement.autoplay = true;
+    audioElement.onended = () => {
+        console.log("Audio playback ended.");
+        currentAudioElement = null;  // Clear the reference when done
+    };
+
+    // Append the new audio element to the body
+    document.body.appendChild(audioElement);
+    currentAudioElement = audioElement;  // Update the reference to the current audio element
+
+    console.log("Audio element created and playback started with path:", uniqueAudioPath);
+}
+
+function speak(text) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.onend = () => {
+        console.log("Speech synthesis ended.");
+    };
+    window.speechSynthesis.speak(utterance);
+}
+
 function startVoiceRecognition() {
-    recognition.start();
-    isRecognizing = true;
-}
-
-function stopVoiceRecognition() {
-    recognition.stop();
-    isRecognizing = false;
-}
-
-function toggleVoiceRecognition() {
+    const talkButton = document.querySelector("button[onclick='startVoiceRecognition()']");
     if (isRecognizing) {
-        stopVoiceRecognition();
+        recognition.stop();
+        isRecognizing = false;
+        talkButton.textContent = "Talk";
+        togglePause();
     } else {
-        startVoiceRecognition();
+        recognition.start();
+        isRecognizing = true;
+        talkButton.textContent = "Pause";
     }
 }
 
-function toggleSpeechSynthesis() {
-    if (isSpeaking) {
-        speechSynthesis.cancel();
-        isSpeaking = false;
-    } else if (currentUtterance) {
-        speechSynthesis.speak(currentUtterance);
-        isSpeaking = true;
+function togglePause() {
+    if (currentAudioElement) {
+        currentAudioElement.pause();
+        currentAudioElement.parentNode.removeChild(currentAudioElement);
+        currentAudioElement = null;
     }
 }
 
 recognition.onresult = (event) => {
     const voiceInput = event.results[0][0].transcript;
+    console.log("Voice input recognized:", voiceInput);  // Log the recognized voice input
     displayMessage("User", voiceInput);
     getBotResponse(voiceInput);
 };
 
 recognition.onend = () => {
+    console.log("Recognition ended. isRecognizing:", isRecognizing);  // Log recognition end
     if (isRecognizing) {
         recognition.start();
     }

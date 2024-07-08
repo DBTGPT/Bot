@@ -52,9 +52,10 @@ function getBotResponse(message) {
                     console.log("Playing audio response from:", data.audio_path);
                     playAudioResponse(data.audio_path);  // Play the audio file
                 } else {
-                    console.log("No audio path provided, using TTS.");
-                    speak(botMessage);  // Fallback to speak function if audio path is not available
+                    console.log("No audio path provided.");
                 }
+            } else {
+                speak(botMessage);  // Use TTS only when not recognizing
             }
         } else {
             displayMessage("Bot", "Sorry, I couldn't understand that. Could you please repeat?");
@@ -111,14 +112,6 @@ function startVoiceRecognition() {
         recognition.start();
         isRecognizing = true;
         talkButton.classList.add("blinking");
-    }
-}
-
-function togglePause() {
-    if (currentAudioElement) {
-        currentAudioElement.pause();
-        currentAudioElement.parentNode.removeChild(currentAudioElement);
-        currentAudioElement = null;
     }
 }
 

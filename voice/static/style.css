@@ -32,10 +32,11 @@ body {
 
 .message {
     margin: 10px 0;
-    padding: 10px;
+    padding: 15px;
     border-radius: 10px;
     max-width: 80%;
     clear: both;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
 }
 
 .message.user {
@@ -70,30 +71,25 @@ button {
     background-color: #007bff;
     color: white;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
 }
 
 button[aria-label="Talk"] {
     background-color: #28a745;
 }
 
-button:hover {
-    opacity: 0.9;
+button[aria-label="Talk"].blinking {
+    background-color: #28a745;
 }
 
-#talk-button {
-    position: relative;
-}
-
-#talk-button.blinking {
-    background-color: transparent;
-    border: none;
-}
-
-#talk-button.blinking .fas.fa-microphone {
+button[aria-label="Talk"].blinking .fas.fa-microphone {
     display: none;
 }
 
-#talk-button.blinking::after {
+button[aria-label="Talk"].blinking::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -104,6 +100,15 @@ button:hover {
     border-radius: 50%;
     animation: blink 1s infinite;
     transform: translate(-50%, -50%);
+}
+
+button[aria-label="Talk"] i,
+button[aria-label="Send"] i {
+    margin: 0;
+}
+
+button:hover {
+    opacity: 0.9;
 }
 
 @keyframes blink {

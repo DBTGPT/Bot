@@ -1,5 +1,6 @@
 const speechSynthesis = window.speechSynthesis;
 const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+let isRecognizing = false;
 
 document.addEventListener("DOMContentLoaded", () => {
     greetUser();
@@ -29,6 +30,7 @@ function sendText() {
     if (userInput) {
         displayMessage("User", userInput);
         getBotResponse(userInput);
+        document.getElementById("user-input").value = '';  // Clear input field after sending
     }
 }
 
@@ -45,7 +47,11 @@ function getBotResponse(message) {
         if (data.response) {
             const botMessage = data.response;
             displayMessage("Bot", botMessage);
-            playAudioResponse(data.audio_path);  // Play the audio file
+            if (data.audio_path) {
+                playAudioResponse(data.audio_path);  // Play the audio file
+            } else {
+                speak(botMessage);  // Fallback to speak function if audio path is not available
+            }
         } else {
             displayMessage("Bot", "Sorry, I couldn't understand that. Could you please repeat?");
         }
@@ -62,9 +68,17 @@ function playAudioResponse(audioPath) {
     audioElement.play();
 }
 
-
-function startVoiceRecognition() {
-    recognition.start();
+function toggleVoiceRecognition() {
+    const talkButton = document.getElementById("talk-button");
+    if (isRecognizing) {
+        recognition.stop();
+        isRecognizing = false;
+        talkButton.textContent = "Talk";
+    } else {
+        recognition.start();
+        isRecognizing = true;
+        talkButton.textContent = "Pause";
+    }
 }
 
 recognition.onresult = (event) => {
@@ -74,5 +88,7 @@ recognition.onresult = (event) => {
 };
 
 recognition.onend = () => {
-    recognition.start();
+    if (isRecognizing) {
+        recognition.start();
+    }
 };

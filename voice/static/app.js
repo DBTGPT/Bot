@@ -1,4 +1,3 @@
-const speechSynthesis = window.speechSynthesis;
 const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 let isRecognizing = false;
 
@@ -8,13 +7,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function greetUser() {
     const greeting = "Hello, how are you doing today?";
-    speak(greeting);
     displayMessage("Bot", greeting);
-}
-
-function speak(text) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    speechSynthesis.speak(utterance);
+    speak(greeting);
 }
 
 function displayMessage(sender, message) {
@@ -35,6 +29,7 @@ function sendText() {
 }
 
 function getBotResponse(message) {
+    console.log("Sending message to server:", message);  // Log the message
     fetch('/api/get-response', {
         method: 'POST',
         headers: {
@@ -44,15 +39,16 @@ function getBotResponse(message) {
     })
     .then(response => response.json())
     .then(data => {
+        console.log("Parsed server response:", data);  // Log the parsed server response
         if (data.response) {
             const botMessage = data.response;
-            displayMessage("Bot", botMessage);
-            if (isRecognizing) {
-                if (data.audio_path) {
-                    playAudioResponse(data.audio_path);  // Play the audio file
-                } else {
-                    speak(botMessage);  // Fallback to speak function if audio path is not available
-                }
+            displayMessage("Bot", botMessage);  // Ensure the message is displayed first
+            if (data.audio_path) {
+                console.log("Playing audio response from:", data.audio_path);
+                playAudioResponse(data.audio_path);  // Play the audio file
+            } else {
+                console.log("No audio path provided, using TTS.");
+                speak(botMessage);  // Fallback to speak function if audio path is not available
             }
         } else {
             displayMessage("Bot", "Sorry, I couldn't understand that. Could you please repeat?");
@@ -65,31 +61,56 @@ function getBotResponse(message) {
 }
 
 function playAudioResponse(audioPath) {
-    const audioElement = document.getElementById("tts-audio");
-    audioElement.src = audioPath;  // Ensure the path is correctly received
-    audioElement.play();
+    // Remove any existing audio element
+    const existingAudioElement = document.getElementById("tts-audio");
+    if (existingAudioElement) {
+        existingAudioElement.parentNode.removeChild(existingAudioElement);
+    }
+
+    // Create a new audio element
+    const audioElement = document.createElement("audio");
+    audioElement.id = "tts-audio";
+    audioElement.src = audioPath;
+    audioElement.autoplay = true;
+    audioElement.onended = () => {
+        console.log("Audio playback ended.");
+    };
+
+    // Append the new audio element to the body
+    document.body.appendChild(audioElement);
+
+    console.log("Audio element created and playback started.");
 }
 
-function toggleVoiceRecognition() {
-    const talkButton = document.getElementById("talk-button");
+function speak(text) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.onend = () => {
+        console.log("Speech synthesis ended.");
+    };
+    window.speechSynthesis.speak(utterance);
+}
+
+function startVoiceRecognition() {
     if (isRecognizing) {
         recognition.stop();
         isRecognizing = false;
-        talkButton.textContent = "Talk";
+        document.querySelector("button[onclick='startVoiceRecognition()']").textContent = "Talk";
     } else {
         recognition.start();
         isRecognizing = true;
-        talkButton.textContent = "Pause";
+        document.querySelector("button[onclick='startVoiceRecognition()']").textContent = "Pause";
     }
 }
 
 recognition.onresult = (event) => {
     const voiceInput = event.results[0][0].transcript;
+    console.log("Voice input recognized:", voiceInput);  // Log the recognized voice input
     displayMessage("User", voiceInput);
     getBotResponse(voiceInput);
 };
 
 recognition.onend = () => {
+    console.log("Recognition ended. isRecognizing:", isRecognizing);  // Log recognition end
     if (isRecognizing) {
         recognition.start();
     }

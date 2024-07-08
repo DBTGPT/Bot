@@ -11,9 +11,8 @@
         <div id="chat-window"></div>
         <input type="text" id="user-input" placeholder="Type your message here...">
         <button onclick="sendText()">Send</button>
-        <button id="talk-button" onclick="toggleVoiceRecognition()">Talk</button>
+        <button onclick="startVoiceRecognition()">Talk</button>
     </div>
-    <audio id="tts-audio"></audio>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

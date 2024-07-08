@@ -44,12 +44,14 @@ function getBotResponse(message) {
         if (data.response) {
             const botMessage = data.response;
             displayMessage("Bot", botMessage);  // Ensure the message is displayed first
-            if (data.audio_path) {
-                console.log("Playing audio response from:", data.audio_path);
-                playAudioResponse(data.audio_path);  // Play the audio file
-            } else {
-                console.log("No audio path provided, using TTS.");
-                speak(botMessage);  // Fallback to speak function if audio path is not available
+            if (isRecognizing) {
+                if (data.audio_path) {
+                    console.log("Playing audio response from:", data.audio_path);
+                    playAudioResponse(data.audio_path);  // Play the audio file
+                } else {
+                    console.log("No audio path provided, using TTS.");
+                    speak(botMessage);  // Fallback to speak function if audio path is not available
+                }
             }
         } else {
             displayMessage("Bot", "Sorry, I couldn't understand that. Could you please repeat?");

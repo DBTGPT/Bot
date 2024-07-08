@@ -44,20 +44,6 @@ def synthesize_speech(text):
         logging.error(f"Exception in synthesize_speech: {e}")
         return None
 
-def complete_sentence(client, text, max_tokens=50):
-    if text[-1] not in ['.', '!', '?']:  # If the text does not end with a sentence-ending punctuation
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": text}],
-            max_tokens=max_tokens
-        )
-        # Ensure we append only up to the next sentence end
-        additional_text = response.choices[0].message['content']
-        first_sentence_end = additional_text.find('.') + 1
-        if first_sentence_end == 0:
-            first_sentence_end = len(additional_text)
-        text += additional_text[:first_sentence_end]
-    return text
 
 @app.route('/')
 def home():
@@ -80,7 +66,6 @@ def get_response():
         logging.debug(f"API Response: {response}")
         
         bot_response = response.choices[0].message.content.strip()
-        bot_response = complete_sentence(client, bot_response, max_tokens=50)  # Complete the sentence if cut off
         audio_path = synthesize_speech(bot_response)
 
         return jsonify({'response': bot_response, 'audio_path': audio_path})

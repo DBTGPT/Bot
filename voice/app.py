@@ -51,7 +51,9 @@ def home():
 
 @app.route('/api/get-response', methods=['POST'])
 def get_response():
-    user_message = request.json.get('message')
+    data = request.get_json()
+    user_message = data.get('message')
+    generate_audio = data.get('generateAudio', False)  # Get the generateAudio flag
     print(f"User Message: {user_message}")  # Log the user message
     try:
         # Generate a completion using the GPT-4o model
@@ -66,14 +68,17 @@ def get_response():
         logging.debug(f"API Response: {response}")
         
         bot_response = response.choices[0].message.content.strip()
-        audio_path = synthesize_speech(bot_response)
+        
+        response_data = {'response': bot_response}
+        
+        if generate_audio:  # Conditionally generate the audio file
+            audio_path = synthesize_speech(bot_response)
+            response_data['audio_path'] = audio_path
 
-        return jsonify({'response': bot_response, 'audio_path': audio_path})
+        return jsonify(response_data)
     except Exception as e:
         logging.error(f"Error generating response: {e}")
         return jsonify({'error': 'Error generating response'}), 500
-
-
 
 if __name__ == '__main__':
     app.run(debug=True)

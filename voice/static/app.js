@@ -36,7 +36,7 @@ function getBotResponse(message) {
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ message })
+        body: JSON.stringify({ message, generateAudio: isRecognizing })
     })
     .then(response => response.json())
     .then(data => {

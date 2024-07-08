@@ -29,6 +29,19 @@ def synthesize_speech(text):
     try:
         speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
         speech_config.speech_synthesis_voice_name = "en-US-JennyNeural"
+    
+       # Log the voice being used
+        print(f"Using voice: {speech_config.speech_synthesis_voice_name}")
+
+        # Define SSML with the hopeful style
+        ssml = f"""
+        <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
+            <voice name='en-US-JennyNeural'>
+                <prosody style='hopeful'>{text}</prosody>
+            </voice>
+        </speak>
+        """
+
         audio_config = speechsdk.audio.AudioOutputConfig(filename="static/tts_output.mp3")
 
         synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)

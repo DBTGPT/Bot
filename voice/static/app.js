@@ -52,10 +52,9 @@ function getBotResponse(message) {
                     console.log("Playing audio response from:", data.audio_path);
                     playAudioResponse(data.audio_path);  // Play the audio file
                 } else {
-                    console.log("No audio path provided.");
+                    console.log("No audio path provided, using TTS.");
+                    speak(botMessage);  // Fallback to speak function if audio path is not available
                 }
-            } else {
-                speak(botMessage);  // Use TTS only when not recognizing
             }
         } else {
             displayMessage("Bot", "Sorry, I couldn't understand that. Could you please repeat?");
@@ -74,6 +73,7 @@ function playAudioResponse(audioPath) {
     // Remove any existing audio element
     if (currentAudioElement) {
         currentAudioElement.pause();
+        currentAudioElement.currentTime = 0;
         currentAudioElement.parentNode.removeChild(currentAudioElement);
     }
 
@@ -96,6 +96,13 @@ function playAudioResponse(audioPath) {
 
 function speak(text) {
     const utterance = new SpeechSynthesisUtterance(text);
+
+    // Customize neural voice parameters
+    utterance.voice = speechSynthesis.getVoices().find(voice => voice.name === "Microsoft Jenny Online (Natural)"); // Replace with desired voice name
+    utterance.pitch = 1.0;  // Adjust pitch (0 to 2)
+    utterance.rate = 1.0;   // Adjust rate (0.1 to 10)
+    utterance.volume = 1.0; // Adjust volume (0 to 1)
+
     utterance.onend = () => {
         console.log("Speech synthesis ended.");
     };
@@ -109,9 +116,33 @@ function startVoiceRecognition() {
         isRecognizing = false;
         talkButton.classList.remove("blinking");
     } else {
+        // Stop any current audio playback
+        if (currentAudioElement) {
+            togglePause(); // Stop the audio if it's playing
+        }
+
+        // Stop any ongoing speech synthesis
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+
         recognition.start();
         isRecognizing = true;
         talkButton.classList.add("blinking");
+    }
+}
+
+function togglePause() {
+    if (currentAudioElement) {
+        currentAudioElement.pause();
+        currentAudioElement.currentTime = 0;
+        currentAudioElement.parentNode.removeChild(currentAudioElement);
+        currentAudioElement = null;
+    }
+
+    // Stop any ongoing speech synthesis
+    if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
     }
 }
 

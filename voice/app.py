@@ -6,6 +6,7 @@ from azure.storage.blob import BlobServiceClient
 from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig
 import azure.cognitiveservices.speech as speechsdk
 import logging
+import time
 
 # Load environment variables from .env file
 dotenv.load_dotenv()
@@ -64,13 +65,60 @@ def upload_audio():
     else:
         return jsonify({"error": "Transcription failed"}), 500
 
-def transcribe_audio(file_path):
-    # Function to transcribe audio using Azure OpenAI Whisper
-    pass
+def transcribe_audio(audio_file_path):
+    # This function will transcribe the audio using Azure Cognitive Services
+    speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
+    audio_config = speechsdk.audio.AudioConfig(filename=audio_file_path)
+    
+    # Configure the recognizer for silence detection
+    recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config, audio_config=audio_config)
+    
+    # Set up silence detection
+    stop_recognition = False
+
+    def stop_cb(evt):
+        nonlocal stop_recognition
+        stop_recognition = True
+
+    recognizer.recognized.connect(lambda evt: print(f"RECOGNIZED: {evt.result.text}"))
+    recognizer.session_stopped.connect(stop_cb)
+    recognizer.canceled.connect(stop_cb)
+
+    recognizer.start_continuous_recognition_async()
+
+    while not stop_recognition:
+        time.sleep(0.1)
+
+    recognizer.stop_continuous_recognition_async()
+    
+    result = recognizer.recognize_once()
+    return result.text if result.reason == speechsdk.ResultReason.RecognizedSpeech else None
 
 def synthesize_speech(text):
-    # Function to synthesize speech using Azure Cognitive Services
-    pass
+    try:
+        speech_config = SpeechConfig(subscription=speech_key, region=service_region)
+        ssml_string = f"""
+        <speak version='1.0' xml:lang='en-US'>
+            <voice name='en-US-JennyNeural'>
+                <prosody style='hopeful'>{text}</prosody>
+            </voice>
+        </speak>
+        """
+
+        audio_config = speechsdk.audio.AudioOutputConfig(filename="static/tts_output.mp3")
+
+        synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+        result = synthesizer.speak_ssml_async(ssml_string).get()
+
+        if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+            logging.debug("Speech synthesized successfully.")
+            return "static/tts_output.mp3"
+        else:
+            logging.error(f"Error synthesizing audio: {result.reason}")
+            return None
+    except Exception as e:
+        logging.error(f"Exception in synthesize_speech: {e}")
+        return None
 
 @app.route('/api/get-response', methods=['POST'])
 def get_response():
@@ -79,28 +127,39 @@ def get_response():
     generate_audio = data.get('generateAudio', False)  # Get the generateAudio flag
     print(f"User Message: {user_message}")  # Log the user message
 
-    try:
-        response = client.chat.completions.create(
-            model="DBTGPT",  # Use your deployment name here
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "Does Azure OpenAI support customer managed keys?"},
-                {"role": "assistant", "content": "Yes, customer managed keys are supported by Azure OpenAI."},
-                {"role": "user", "content": "Do other Azure AI services support this too?"}
-            ]
-        )
-        
-        bot_response = response.choices[0].message.content.strip()
-        response_data = {'response': bot_response}
-        
-        if generate_audio:  # Conditionally generate the audio file
-            audio_path = synthesize_speech(bot_response)
-            response_data['audio_path'] = audio_path
+    max_retries = 5
+    retry_delay = 1  # Initial delay in seconds
 
-        return jsonify(response_data)
-    except Exception as e:
-        logging.error(f"Error generating response: {e}")
-        return jsonify({'error': 'Error generating response'}), 500
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model="DBTGPT",
+                messages=[
+                    {"role": "system", "content": "You are a crazy ex girlfriend who is mad but also loves the user talking to them"},
+                    {"role": "user", "content": "Tell me a joke."}   
+                ],
+                temperature=0.5,  # Adjust temperature if necessary
+                max_tokens=50,  # Adjust max tokens if necessary
+                stream=False  # Set to False to receive full response at once
+            )
+
+            # Log the response from Azure OpenAI
+            logging.debug(f"OpenAI Response: {response}")
+
+            bot_response = response.choices[0].message.content.strip()
+            response_data = {'response': bot_response}
+            
+            if generate_audio:  # Conditionally generate the audio file
+                audio_path = synthesize_speech(bot_response)
+                response_data['audio_path'] = audio_path
+
+            return jsonify(response_data)
+
+        except Exception as e:
+            logging.error(f"Error generating response: {e}")
+            return jsonify({'error': 'Error generating response'}), 500
+
+    return jsonify({'error': 'Exceeded maximum retries'}), 429
 
 if __name__ == '__main__':
     app.run(debug=True)

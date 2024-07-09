@@ -1,8 +1,9 @@
 Flask==2.1.2
 requests==2.27.1
-openai==1.0.0
+openai>=1.0.0  # Ensuring at least version 1.0.0 but allows for newer versions
 Werkzeug==2.0.3
 python-dotenv==1.0.1
 pydub==0.25.1
 ffmpeg-python==0.2.0
 azure-cognitiveservices-speech==1.38.0
+azure-storage-blob

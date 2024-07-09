@@ -118,7 +118,7 @@ def get_response():
     try:
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {AZURE_API_KEY}'
+            'api-key': AZURE_API_KEY  # Use 'api-key' instead of 'Authorization'
         }
         json_data = {
             "model": "gpt-4o",
@@ -128,7 +128,8 @@ def get_response():
             ],
             "max_tokens": 100
         }
-        response = requests.post(AZURE_OPENAI_ENDPOINT, headers=headers, json=json_data)
+        # Correct the endpoint path
+        response = requests.post(f"{AZURE_OPENAI_ENDPOINT}/openai/deployments/DBTGPT/chat/completions?api-version=2023-03-15-preview", headers=headers, json=json_data)
         response_data = response.json()
         
         logging.debug(f"API Response: {response_data}")

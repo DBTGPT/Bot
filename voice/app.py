@@ -1,37 +1,89 @@
-from flask import Flask, request, jsonify, render_template
-from openai import OpenAI
 import os
+import requests
+from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
-from pathlib import Path
 import azure.cognitiveservices.speech as speechsdk
 import logging
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
+# Load environment variables from .env file
+load_dotenv()
+
 app = Flask(__name__)
 
-# Load environment variables
-load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
-speech_key = os.getenv('AZURE_SPEECH_KEY')
-service_region = os.getenv('AZURE_SERVICE_REGION')
+# Load your Azure OpenAI Whisper configuration from environment variables
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+AZURE_API_KEY = os.getenv("AZURE_API_KEY")
 
-# Set OpenAI API key
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+# Load Azure Speech key and region
+speech_key = os.getenv("AZURE_SPEECH_KEY")
+service_region = os.getenv("AZURE_SERVICE_REGION")
 
-# Log the Azure Speech Service configuration
-logging.basicConfig(level=logging.DEBUG)
+# Log the loaded configurations
+logging.debug(f"Azure OpenAI Endpoint: {AZURE_OPENAI_ENDPOINT}")
+logging.debug(f"Azure API Key: {AZURE_API_KEY}")
 logging.debug(f"Azure Speech Key: {speech_key}")
 logging.debug(f"Azure Service Region: {service_region}")
 
-def synthesize_speech(text):
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/api/upload-audio', methods=['POST'])
+def upload_audio():
+    if 'audio' not in request.files:
+        return jsonify({"error": "No audio file provided"}), 400
+
+    audio_file = request.files['audio']
+
+    # Save the file temporarily
+    temp_file_path = os.path.join("/tmp", audio_file.filename)
+    audio_file.save(temp_file_path)
+
+    # Process the file using Azure OpenAI Whisper
+    transcription = transcribe_audio(temp_file_path)
+
+    # Clean up the temporary file
+    os.remove(temp_file_path)
+
+    if transcription:
+        return jsonify({"transcription": transcription}), 200
+    else:
+        return jsonify({"error": "Transcription failed"}), 500
+
+def transcribe_audio(file_path):
+    headers = {
+        "api-key": AZURE_API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    files = {
+        "file": open(file_path, "rb")
+    }
+
+    response = requests.post(AZURE_OPENAI_ENDPOINT, headers=headers, files=files)
+
+    if response.status_code == 200:
+        return response.json().get("text")
+    else:
+        logging.error(f"Error: {response.status_code} - {response.text}")
+        return None
+
+@app.route('/api/synthesize-speech', methods=['POST'])
+def synthesize_speech():
+    data = request.get_json()
+    text = data.get('text')
+    if not text:
+        return jsonify({"error": "No text provided"}), 400
+
     try:
         speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
         speech_config.speech_synthesis_voice_name = "en-US-JennyNeural"
     
-       # Log the voice being used
-        print(f"Using voice: {speech_config.speech_synthesis_voice_name}")
+        # Log the voice being used
+        logging.debug(f"Using voice: {speech_config.speech_synthesis_voice_name}")
 
         # Define SSML with the hopeful style
         ssml = f"""
@@ -49,18 +101,13 @@ def synthesize_speech(text):
 
         if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
             logging.debug("Speech synthesized successfully.")
-            return "static/tts_output.mp3"
+            return jsonify({"audio_path": "static/tts_output.mp3"}), 200
         else:
             logging.error(f"Error synthesizing audio: {result.reason}")
-            return None
+            return jsonify({"error": f"Error synthesizing audio: {result.reason}"}), 500
     except Exception as e:
         logging.error(f"Exception in synthesize_speech: {e}")
-        return None
-
-
-@app.route('/')
-def home():
-    return render_template('index.html')
+        return jsonify({"error": f"Exception in synthesize_speech: {e}"}), 500
 
 @app.route('/api/get-response', methods=['POST'])
 def get_response():
@@ -69,18 +116,24 @@ def get_response():
     generate_audio = data.get('generateAudio', False)  # Get the generateAudio flag
     print(f"User Message: {user_message}")  # Log the user message
     try:
-        # Generate a completion using the GPT-4o model
-        response = client.chat.completions.create(
-            model='gpt-4o',
-            messages=[
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {AZURE_API_KEY}'
+        }
+        json_data = {
+            "model": "gpt-4o",
+            "messages": [
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": user_message}
             ],
-            max_tokens=100
-        )
-        logging.debug(f"API Response: {response}")
+            "max_tokens": 100
+        }
+        response = requests.post(AZURE_OPENAI_ENDPOINT, headers=headers, json=json_data)
+        response_data = response.json()
         
-        bot_response = response.choices[0].message.content.strip()
+        logging.debug(f"API Response: {response_data}")
+        
+        bot_response = response_data['choices'][0]['message']['content'].strip()
         
         response_data = {'response': bot_response}
         

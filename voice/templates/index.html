@@ -11,12 +11,9 @@
         <div id="chat-window"></div>
         <div id="input-container">
             <input type="text" id="user-input" placeholder="Type a message...">
-            <button onclick="sendText()">Send</button>
-            <button id="talk-button" onclick="startVoiceRecognition()" aria-label="Talk">
-                <i class="fas fa-microphone"></i>
-            </button>
+            <button onclick="sendMessage()">Send</button>
         </div>
     </div>
-    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

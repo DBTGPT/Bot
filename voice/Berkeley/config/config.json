@@ -1,0 +1,6 @@
+{
+    "speech_key": "YOUR_AZURE_SPEECH_KEY",
+    "service_region": "YOUR_AZURE_SERVICE_REGION",
+    "openai_key": "YOUR_OPENAI_API_KEY"
+  }
+  

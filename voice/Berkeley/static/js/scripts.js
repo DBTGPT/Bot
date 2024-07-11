@@ -1,5 +1,6 @@
 document.getElementById("send-btn").addEventListener("click", function() {
-    sendMessage();
+    const userInput = document.getElementById("user-input").value;
+    sendMessage(userInput);
 });
 
 document.getElementById("mic-btn").addEventListener("click", function() {
@@ -12,9 +13,10 @@ document.getElementById("user-input").addEventListener("input", function() {
 
 let messageQueue = [];
 let isProcessing = false;
+let isMicOn = false;
+let recognition;
 
-function sendMessage() {
-    const userInput = document.getElementById("user-input").value;
+function sendMessage(userInput) {
     if (userInput.trim() !== "") {
         addMessageToChat("You", userInput);
         document.getElementById("user-input").value = "";
@@ -24,7 +26,7 @@ function sendMessage() {
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ input: userInput })
+            body: JSON.stringify({ input: userInput, use_tts: isMicOn })
         })
         .then(response => response.json())
         .then(data => {
@@ -62,15 +64,67 @@ function processQueue() {
         isProcessing = true;
         const chunk = messageQueue.shift();
         addMessageToChat("Bot", chunk, true);
-        setTimeout(processQueue, 500);  // Adjust the delay as needed
+        setTimeout(processQueue, 100);  // Reduced the delay for faster processing
     } else {
         isProcessing = false;
     }
 }
 
 function toggleMic() {
-    // Implement the voice recognition toggle logic here
-    console.log("Microphone toggled");
+    isMicOn = !isMicOn;
+    const micBtn = document.getElementById("mic-btn");
+    if (isMicOn) {
+        micBtn.classList.add("active");
+        micBtn.innerHTML = "🎤 (On)";
+        startRecognition();
+    } else {
+        micBtn.classList.remove("active");
+        micBtn.innerHTML = "🎤 (Off)";
+        stopRecognition();
+    }
+    console.log("Microphone toggled", isMicOn);
+}
+
+function startRecognition() {
+    if (!('webkitSpeechRecognition' in window)) {
+        console.log('Speech recognition not supported');
+        return;
+    }
+    recognition = new webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onstart = function() {
+        console.log('Speech recognition started');
+    };
+
+    recognition.onresult = function(event) {
+        if (event.results.length > 0) {
+            const userInput = event.results[0][0].transcript;
+            console.log('Speech recognized:', userInput);
+            sendMessage(userInput);  // Immediate processing of recognized speech
+        }
+    };
+
+    recognition.onerror = function(event) {
+        console.log('Speech recognition error:', event.error);
+    };
+
+    recognition.onend = function() {
+        console.log('Speech recognition ended');
+        if (isMicOn) {
+            recognition.start();  // Restart recognition if mic is still on
+        }
+    };
+
+    recognition.start();
+}
+
+function stopRecognition() {
+    if (recognition) {
+        recognition.stop();
+    }
 }
 
 function addMessageToChat(sender, message, append = false) {

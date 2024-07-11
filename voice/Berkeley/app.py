@@ -38,11 +38,14 @@ def index():
 
 @app.route('/api/start-response', methods=['POST'])
 def start_response():
-    user_input = request.json['input']
+    data = request.json
+    user_input = data['input']
+    use_tts = data.get('use_tts', False)
     session_id = str(uuid.uuid4())
     active_sessions[session_id] = {
         'user_input': user_input,
-        'response_text': ''
+        'response_text': '',
+        'use_tts': use_tts
     }
     return jsonify({"session_id": session_id}), 200
 
@@ -55,6 +58,7 @@ def get_response(session_id):
         try:
             session = active_sessions[session_id]
             user_input = session['user_input']
+            use_tts = session['use_tts']
             print(f"User input: {user_input}")
 
             completion = gpt_client.chat.completions.create(
@@ -73,8 +77,8 @@ def get_response(session_id):
                         print(f"Chunk text: {chunk_text}")  # Logging chunk text
                         session['response_text'] += chunk_text
                         yield f"data: {chunk_text}\n\n"  # Stream the chunk to the client
-                        # Write text to speech synthesis stream
-                        speech_synthesizer.speak_text_async(chunk_text)
+                        if use_tts:
+                            speech_synthesizer.speak_text_async(chunk_text)
             print("[GPT END]")  # Logging end of GPT response
             yield "data: [GPT END]\n\n"
         except Exception as e:

@@ -49,29 +49,16 @@ body {
     color: white;
     border-radius: 5px;
     cursor: pointer;
-    transition: background-color 0.3s;
 }
 
 #chat-input button:hover {
     background-color: #0056b3;
 }
 
-#chat-input button:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
+.message {
+    margin-bottom: 5px;
 }
 
-@media (max-width: 600px) {
-    #chat-container {
-        width: 100%;
-        border-radius: 0;
-    }
-
-    #chat-input input {
-        margin-right: 5px;
-    }
-
-    #chat-input button {
-        padding: 8px;
-    }
+.bot-message {
+    color: blue;
 }

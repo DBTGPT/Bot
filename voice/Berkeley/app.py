@@ -1,93 +1,112 @@
 import os
 import uuid
+import asyncio
 from openai import AzureOpenAI
 import azure.cognitiveservices.speech as speechsdk
-from flask import Flask, request, render_template, Response, jsonify
+from quart import Quart, request, render_template, jsonify, Response
 from dotenv import load_dotenv
+import aiohttp
+import time
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Quart(__name__)
 
 # Setup AzureOpenAI client
-gpt_client = AzureOpenAI(azure_endpoint=os.getenv("AZURE_OPENAI_API_ENDPOINT"), api_key=os.getenv("AZURE_OPENAI_API_KEY"), api_version="2024-02-01")
+gpt_client = AzureOpenAI(
+    azure_endpoint=os.getenv("AZURE_OPENAI_API_ENDPOINT"),
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    api_version="2024-02-01"
+)
 
-# Setup speech synthesizer
-speech_config = speechsdk.SpeechConfig(endpoint=f"wss://{os.getenv('AZURE_TTS_REGION')}.tts.speech.microsoft.com/cognitiveservices/websocket/v2",
-                                       subscription=os.getenv("AZURE_TTS_API_KEY"))
+# Setup speech synthesizer with pre-connect and reuse
+speech_config = speechsdk.SpeechConfig(subscription=os.getenv("AZURE_TTS_API_KEY"), region=os.getenv("AZURE_TTS_REGION"))
 audio_config = speechsdk.audio.AudioOutputConfig(use_default_speaker=True)
 speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+connection = speechsdk.Connection.from_speech_synthesizer(speech_synthesizer)
+connection.open(True)
 
-speech_synthesizer.synthesizing.connect(lambda evt: print("[audio]", end=""))
+# Set voice and timeout properties
+speech_config.speech_synthesis_voice_name = "en-US-AriaNeural"
 
-# Set a voice name
-speech_config.speech_synthesis_voice_name = "en-US-AvaMultilingualNeural"
+# Prewarm the synthesizer
+speech_synthesizer.speak_text_async("Hello.").get()
 
-# Set timeout values to avoid SDK cancelling the request when GPT latency is too high
-properties = {
-    "SpeechSynthesis_FrameTimeoutInterval": "100000000",
-    "SpeechSynthesis_RtfTimeoutThreshold": "10"
-}
-speech_config.set_properties_by_name(properties)
-
+# Active sessions dictionary
 active_sessions = {}
 
+async def send_request(payload):
+    async with aiohttp.ClientSession() as session:
+        async with session.post("https://api.example.com/endpoint", json=payload) as response:
+            return await response.json()
+
 @app.route('/')
-def index():
-    return render_template('index.html')
+async def index():
+    return await render_template('index.html')
 
 @app.route('/api/start-response', methods=['POST'])
-def start_response():
-    data = request.json
+async def start_response():
+    data = await request.json
     user_input = data['input']
-    use_tts = data.get('use_tts', False)
+    use_tts = data['use_tts']
+    
     session_id = str(uuid.uuid4())
-    active_sessions[session_id] = {
-        'user_input': user_input,
-        'response_text': '',
-        'use_tts': use_tts
-    }
-    return jsonify({"session_id": session_id}), 200
+    active_sessions[session_id] = {'user_input': user_input, 'use_tts': use_tts, 'response_text': ''}
+    
+    return jsonify({"session_id": session_id})
 
 @app.route('/api/get-response/<session_id>', methods=['GET'])
-def get_response(session_id):
-    if session_id not in active_sessions:
-        return jsonify({"error": "Invalid session ID"}), 400
+async def get_response(session_id):
+    return Response(generate(session_id), mimetype='text/event-stream')
 
-    def generate():
-        try:
-            session = active_sessions[session_id]
-            user_input = session['user_input']
-            use_tts = session['use_tts']
-            print(f"User input: {user_input}")
+async def stream_openai_responses(completion):
+    async for message in completion:
+        if message.get("choices"):
+            chunk_text = message["choices"][0]["delta"]["content"]
+            yield chunk_text
 
-            completion = gpt_client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": user_input}
-                ],
-                stream=True
+async def generate(session_id):
+    try:
+        session = active_sessions[session_id]
+        user_input = session['user_input']
+        use_tts = session['use_tts']
+        print(f"User input: {user_input}")
+
+        start_time = time.time()
+        completion = gpt_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": user_input}
+            ],
+            stream=True
+        )
+
+        response_chunks = []
+        async for chunk_text in stream_openai_responses(completion):
+            print(f"Chunk text: {chunk_text}")
+            session['response_text'] += chunk_text
+            response_chunks.append(chunk_text)
+            yield f"data: {chunk_text}\n\n"
+        end_time = time.time()
+        print(f"[GPT END] GPT response time: {end_time - start_time} seconds")
+
+        # Synthesize speech concurrently
+        if use_tts:
+            await asyncio.gather(
+                *(asyncio.to_thread(speech_synthesizer.speak_text_async(chunk).get) for chunk in response_chunks)
             )
+            print("[TTS END]")
 
-            for chunk in completion:
-                if len(chunk.choices) > 0:
-                    chunk_text = chunk.choices[0].delta.content
-                    if chunk_text:
-                        print(f"Chunk text: {chunk_text}")  # Logging chunk text
-                        session['response_text'] += chunk_text
-                        yield f"data: {chunk_text}\n\n"  # Stream the chunk to the client
-                        if use_tts:
-                            speech_synthesizer.speak_text_async(chunk_text)
-            print("[GPT END]")  # Logging end of GPT response
-            yield "data: [GPT END]\n\n"
-        except Exception as e:
-            print(f"Error: {e}")
-            yield f"data: Error: {str(e)}\n\n"
-        finally:
-            del active_sessions[session_id]
+        yield "data: [GPT END]\n\n"
+    except Exception as e:
+        print(f"Error: {e}")
+        yield f"data: Error: {str(e)}\n\n"
+    finally:
+        del active_sessions[session_id]
 
-    return Response(generate(), content_type='text/event-stream')
+async def main():
+    app.run(debug=True, host='0.0.0.0', port=5000)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    asyncio.run(main())

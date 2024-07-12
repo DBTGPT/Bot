@@ -30,6 +30,7 @@ function sendMessage(userInput) {
         })
         .then(response => response.json())
         .then(data => {
+            console.log("Response from start-response:", data); // Debugging
             if (data.session_id) {
                 const sessionId = data.session_id;
                 const eventSource = new EventSource(`/api/get-response/${sessionId}`);
@@ -53,7 +54,7 @@ function sendMessage(userInput) {
             }
         })
         .catch(error => {
-            console.error("Error:", error);
+            console.error("Error in sendMessage:", error); // Debugging
             addMessageToChat("Bot", "Sorry, something went wrong.");
         });
     }
@@ -64,7 +65,7 @@ function processQueue() {
         isProcessing = true;
         const chunk = messageQueue.shift();
         addMessageToChat("Bot", chunk, true);
-        setTimeout(processQueue, 100);  // Reduced the delay for faster processing
+        setTimeout(processQueue, 50);  // Reduced the delay for faster processing
     } else {
         isProcessing = false;
     }
@@ -146,9 +147,4 @@ function addMessageToChat(sender, message, append = false) {
 
 function toggleSendButton() {
     const userInput = document.getElementById("user-input").value;
-    const sendButton = document.getElementById("send-btn");
-    sendButton.disabled = userInput.trim() === "";
-}
-
-// Initialize send button state
-toggleSendButton();
+    const sendButton = document.getElement

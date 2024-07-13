@@ -1,16 +1,45 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const form = document.getElementById("input-form");
+    const form = document.getElementById("chat-input");
     const inputField = document.getElementById("user-input");
-    const responseContainer = document.getElementById("response-container");
+    const responseContainer = document.getElementById("chat-window");
+    const micButton = document.getElementById("mic-btn");
+    let recognition;
+
+    if ('webkitSpeechRecognition' in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+            micButton.classList.add('active');
+            micButton.setAttribute('aria-pressed', 'true');
+        };
+
+        recognition.onend = () => {
+            micButton.classList.remove('active');
+            micButton.setAttribute('aria-pressed', 'false');
+        };
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            inputField.value = transcript;
+        };
+
+        micButton.addEventListener('click', () => {
+            if (recognition) {
+                recognition.start();
+            }
+        });
+    }
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const userInput = inputField.value;
         const useTts = document.getElementById("use-tts").checked;
-        responseContainer.innerHTML = '';  // Clear previous response
+        inputField.value = ''; // Clear input field
 
         try {
-            // Start response session
             const startResponse = await fetch("/api/start-response", {
                 method: "POST",
                 headers: {
@@ -22,11 +51,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const startData = await startResponse.json();
             const sessionId = startData.session_id;
 
-            // Create a single paragraph element for the response
             const paragraph = document.createElement("p");
+            paragraph.classList.add("message", "user-message");
+            paragraph.textContent = userInput;
             responseContainer.appendChild(paragraph);
 
-            // Get response stream
             const eventSource = new EventSource(`/api/get-response/${sessionId}`);
             
             eventSource.onmessage = (event) => {
@@ -35,8 +64,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (data === "[GPT END]") {
                     eventSource.close();
                 } else {
-                    // Append text to the same paragraph for natural flow
-                    paragraph.textContent += data;
+                    const botMessage = document.createElement("p");
+                    botMessage.classList.add("message", "bot-message");
+                    botMessage.textContent = data;
+                    responseContainer.appendChild(botMessage);
                 }
             };
 

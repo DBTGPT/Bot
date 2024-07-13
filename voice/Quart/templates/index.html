@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quart App</title>
+    <title>Therapist Chatbot</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='app.js') }}" defer></script>
 </head>
 <body>
-    <h1>Quart App Interface</h1>
-    <form id="input-form">
-        <label for="user-input">Enter your input:</label>
-        <input type="text" id="user-input" name="input" required>
-        <br>
-        <label for="use-tts">Use Text-to-Speech:</label>
-        <input type="checkbox" id="use-tts" name="use-tts">
-        <br>
-        <button type="submit">Submit</button>
-    </form>
-    <div id="response-container"></div>
+    <div id="chat-container">
+        <div id="chat-window" role="log" aria-live="polite"></div>
+        <form id="chat-input" aria-labelledby="user-input-label">
+            <label id="user-input-label" for="user-input">Type your message:</label>
+            <input type="text" id="user-input" name="input" required aria-required="true" placeholder="Type your message here">
+            <button type="submit">Send</button>
+            <button type="button" id="mic-btn" aria-pressed="false">🎤</button>
+            <input type="checkbox" id="use-tts" name="use-tts">
+            <label for="use-tts">Use Text-to-Speech</label>
+        </form>
+    </div>
 </body>
 </html>

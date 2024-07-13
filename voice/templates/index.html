@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Assistant</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Quart App Interface</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div id="chat-container">
-        <div id="chat-window"></div>
-        <div id="input-container">
-            <input type="text" id="user-input" placeholder="Type a message...">
-            <button onclick="sendMessage()">Send</button>
-        </div>
-    </div>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <h1>Quart App Interface</h1>
+    <form id="input-form">
+        <input type="text" id="user-input" name="user-input">
+        <label for="use-tts">Use Text-to-Speech:</label>
+        <input type="checkbox" id="use-tts" name="use-tts">
+        <button type="submit">Submit</button>
+    </form>
+    <div id="response-container"></div>
+    <script src="/static/app.js"></script>
 </body>
 </html>

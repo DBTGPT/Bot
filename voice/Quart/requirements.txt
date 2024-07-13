@@ -1,4 +1,7 @@
+uuid
+json
 quart
-openai
-azure-cognitiveservices-speech
-python-dotenv
+load_dotenv
+azure.cognitiveservices.speech
+httpx
+asyncio

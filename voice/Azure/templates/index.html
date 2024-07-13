@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant Chat</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="chat-container">
+        <div id="chat-window" class="chat-window"></div>
+        <input type="text" id="message-input" placeholder="Type your message here...">
+        <button id="send-button">Send</button>
+    </div>
+
+    <script>
+        document.getElementById('send-button').addEventListener('click', async () => {
+            const messageInput = document.getElementById('message-input');
+            const message = messageInput.value;
+
+            if (!message) return;
+
+            const response = await fetch('/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message })
+            });
+
+            const result = await response.json();
+            const chatWindow = document.getElementById('chat-window');
+
+            chatWindow.innerHTML += `<div class="message user-message">${message}</div>`;
+            chatWindow.innerHTML += `<div class="message bot-message">${result.choices[0].message.content}</div>`;
+
+            messageInput.value = '';
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        });
+    </script>
+</body>
+</html>

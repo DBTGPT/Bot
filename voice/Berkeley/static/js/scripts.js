@@ -16,6 +16,7 @@ let isProcessing = false;
 let isMicOn = false;
 let recognition;
 
+// Sends a message to the server and handles the response
 function sendMessage(userInput) {
     if (userInput.trim() !== "") {
         addMessageToChat("You", userInput);
@@ -26,11 +27,10 @@ function sendMessage(userInput) {
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ input: userInput, use_tts: isMicOn })
+            body: JSON.stringify({ input: userInput })
         })
         .then(response => response.json())
         .then(data => {
-            console.log("Response from start-response:", data); // Debugging
             if (data.session_id) {
                 const sessionId = data.session_id;
                 const eventSource = new EventSource(`/api/get-response/${sessionId}`);
@@ -54,23 +54,25 @@ function sendMessage(userInput) {
             }
         })
         .catch(error => {
-            console.error("Error in sendMessage:", error); // Debugging
+            console.error("Error in sendMessage:", error);
             addMessageToChat("Bot", "Sorry, something went wrong.");
         });
     }
 }
 
+// Processes the message queue to display messages one by one
 function processQueue() {
     if (messageQueue.length > 0) {
         isProcessing = true;
         const chunk = messageQueue.shift();
         addMessageToChat("Bot", chunk, true);
-        setTimeout(processQueue, 50);  // Reduced the delay for faster processing
+        setTimeout(processQueue, 50);  // Adjust the delay as needed
     } else {
         isProcessing = false;
     }
 }
 
+// Toggles the microphone on and off
 function toggleMic() {
     isMicOn = !isMicOn;
     const micBtn = document.getElementById("mic-btn");
@@ -83,9 +85,9 @@ function toggleMic() {
         micBtn.innerHTML = "🎤 (Off)";
         stopRecognition();
     }
-    console.log("Microphone toggled", isMicOn);
 }
 
+// Starts speech recognition
 function startRecognition() {
     if (!('webkitSpeechRecognition' in window)) {
         console.log('Speech recognition not supported');
@@ -103,13 +105,12 @@ function startRecognition() {
     recognition.onresult = function(event) {
         if (event.results.length > 0) {
             const userInput = event.results[0][0].transcript;
-            console.log('Speech recognized:', userInput);
             sendMessage(userInput);  // Immediate processing of recognized speech
         }
     };
 
     recognition.onerror = function(event) {
-        console.log('Speech recognition error:', event.error);
+        console.error('Speech recognition error:', event.error);
     };
 
     recognition.onend = function() {
@@ -122,12 +123,14 @@ function startRecognition() {
     recognition.start();
 }
 
+// Stops speech recognition
 function stopRecognition() {
     if (recognition) {
         recognition.stop();
     }
 }
 
+// Adds a message to the chat window
 function addMessageToChat(sender, message, append = false) {
     const chatOutput = document.getElementById("chat-output");
     if (append) {
@@ -145,6 +148,9 @@ function addMessageToChat(sender, message, append = false) {
     chatOutput.scrollTop = chatOutput.scrollHeight;
 }
 
+// Toggles the send button based on input field content
 function toggleSendButton() {
     const userInput = document.getElementById("user-input").value;
-    const sendButton = document.getElement
+    const sendButton = document.getElementById("send-btn");
+    sendButton.disabled = userInput.trim() === "";
+}

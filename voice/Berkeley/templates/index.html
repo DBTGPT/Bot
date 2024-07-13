@@ -2,21 +2,152 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <title>Voice Chatbot</title>
+    <style>
+        .chat-window { width: 100%; height: 500px; border: 1px solid #ccc; overflow-y: auto; }
+        .message { padding: 5px; margin: 5px 0; }
+        .user-message { background-color: #e1ffc7; }
+        .bot-message { background-color: #f1f1f1; }
+    </style>
 </head>
 <body>
-    <div id="chat-container">
-        <div id="chat-window">
-            <div id="chat-output"></div>
-        </div>
-        <div id="chat-input">
-            <input type="text" id="user-input" placeholder="Type a message...">
-            <button id="send-btn">Send</button>
-            <button id="mic-btn">🎤</button>
-        </div>
-    </div>
-    <script src="/static/js/scripts.js"></script>
+    <div class="chat-window" id="chat-output"></div>
+    <input type="text" id="user-input" placeholder="Type a message...">
+    <button id="send-btn" onclick="sendMessage()">Send</button>
+    <button id="mic-btn" onclick="toggleMic()">🎤 (Off)</button>
+
+    <script>
+        let messageQueue = [];
+        let isProcessing = false;
+        let isMicOn = false;
+        let recognition;
+
+        function sendMessage() {
+            const userInput = document.getElementById("user-input").value;
+            if (userInput.trim() !== "") {
+                addMessageToChat("You", userInput);
+                document.getElementById("user-input").value = "";
+
+                fetch("/api/start-response", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ input: userInput })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.session_id) {
+                        const sessionId = data.session_id;
+                        const eventSource = new EventSource(`/api/get-response/${sessionId}`);
+                        eventSource.onmessage = function(event) {
+                            if (event.data !== "[GPT END]") {
+                                messageQueue.push(event.data);
+                                if (!isProcessing) {
+                                    processQueue();
+                                }
+                            } else {
+                                eventSource.close();
+                            }
+                        };
+                        eventSource.onerror = function(err) {
+                            console.error("EventSource failed:", err);
+                            addMessageToChat("Bot", "Sorry, something went wrong.");
+                            eventSource.close();
+                        };
+                    } else {
+                        addMessageToChat("Bot", "Sorry, something went wrong.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error in sendMessage:", error);
+                    addMessageToChat("Bot", "Sorry, something went wrong.");
+                });
+            }
+        }
+
+        function processQueue() {
+            if (messageQueue.length > 0) {
+                isProcessing = true;
+                const chunk = messageQueue.shift();
+                addMessageToChat("Bot", chunk, true);
+                setTimeout(processQueue, 50);
+            } else {
+                isProcessing = false;
+            }
+        }
+
+        function toggleMic() {
+            isMicOn = !isMicOn;
+            const micBtn = document.getElementById("mic-btn");
+            if (isMicOn) {
+                micBtn.classList.add("active");
+                micBtn.innerHTML = "🎤 (On)";
+                startRecognition();
+            } else {
+                micBtn.classList.remove("active");
+                micBtn.innerHTML = "🎤 (Off)";
+                stopRecognition();
+            }
+        }
+
+        function startRecognition() {
+            if (!('webkitSpeechRecognition' in window)) {
+                console.log('Speech recognition not supported');
+                return;
+            }
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = "en-US";
+
+            recognition.onstart = function() {
+                console.log('Speech recognition started');
+            };
+
+            recognition.onresult = function(event) {
+                if (event.results.length > 0) {
+                    const userInput = event.results[0][0].transcript;
+                    sendMessage(userInput);
+                }
+            };
+
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error);
+            };
+
+            recognition.onend = function() {
+                console.log('Speech recognition ended');
+                if (isMicOn) {
+                    recognition.start();
+                }
+            };
+
+            recognition.start();
+        }
+
+        function stopRecognition() {
+            if (recognition) {
+                recognition.stop();
+            }
+        }
+
+        function addMessageToChat(sender, message, append = false) {
+            const chatOutput = document.getElementById("chat-output");
+            if (append) {
+                const lastMessage = chatOutput.lastElementChild;
+                if (lastMessage && lastMessage.classList.contains(`${sender.toLowerCase()}-message`)) {
+                    lastMessage.innerHTML += message;
+                    chatOutput.scrollTop = chatOutput.scrollHeight;
+                    return;
+                }
+            }
+            const messageElement = document.createElement("div");
+            messageElement.classList.add(`${sender.toLowerCase()}-message`, 'message');
+            messageElement.innerHTML = `<strong>${sender}:</strong> ${message}`;
+            chatOutput.appendChild(messageElement);
+            chatOutput.scrollTop = chatOutput.scrollHeight;
+        }
+    </script>
 </body>
 </html>

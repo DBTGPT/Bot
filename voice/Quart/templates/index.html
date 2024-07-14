@@ -11,12 +11,9 @@
     <div id="chat-container">
         <div id="chat-window" role="log" aria-live="polite"></div>
         <form id="chat-input" aria-labelledby="user-input-label">
-            <label id="user-input-label" for="user-input">Type your message:</label>
             <input type="text" id="user-input" name="input" required aria-required="true" placeholder="Type your message here">
-            <button type="submit">Send</button>
-            <button type="button" id="mic-btn" aria-pressed="false">🎤</button>
-            <input type="checkbox" id="use-tts" name="use-tts">
-            <label for="use-tts">Use Text-to-Speech</label>
+            <button type="submit" class="send-btn">↑</button>
+            <button type="button" id="mic-btn" class="mic-btn" aria-pressed="false">🎙️</button>
         </form>
     </div>
 </body>

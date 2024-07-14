@@ -55,7 +55,21 @@ body {
     margin-right: 10px;
 }
 
-#chat-input button {
+#chat-input .send-btn {
+    padding: 10px;
+    border: none;
+    background-color: #007bff;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-right: 10px; /* Added margin to the right */
+}
+
+#chat-input .send-btn:hover {
+    background-color: #0056b3;
+}
+
+#chat-input .mic-btn {
     padding: 10px;
     border: none;
     background-color: #007bff;
@@ -64,7 +78,7 @@ body {
     cursor: pointer;
 }
 
-#chat-input button:hover {
+#chat-input .mic-btn:hover {
     background-color: #0056b3;
 }
 

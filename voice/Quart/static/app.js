@@ -36,7 +36,6 @@ document.addEventListener("DOMContentLoaded", () => {
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const userInput = inputField.value;
-        const useTts = document.getElementById("use-tts").checked;
         inputField.value = ''; // Clear input field
 
         try {
@@ -45,29 +44,36 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ input: userInput, use_tts: useTts })
+                body: JSON.stringify({ input: userInput })
             });
+
+            if (!startResponse.ok) {
+                throw new Error('Network response was not ok');
+            }
 
             const startData = await startResponse.json();
             const sessionId = startData.session_id;
 
-            const paragraph = document.createElement("p");
-            paragraph.classList.add("message", "user-message");
-            paragraph.textContent = userInput;
-            responseContainer.appendChild(paragraph);
+            const userMessageBubble = document.createElement("p");
+            userMessageBubble.classList.add("message", "user-message");
+            userMessageBubble.textContent = userInput;
+            responseContainer.appendChild(userMessageBubble);
+
+            const botMessageBubble = document.createElement("p");
+            botMessageBubble.classList.add("message", "bot-message");
+            responseContainer.appendChild(botMessageBubble);
 
             const eventSource = new EventSource(`/api/get-response/${sessionId}`);
-            
+            let responseText = '';
+
             eventSource.onmessage = (event) => {
                 const data = event.data;
 
                 if (data === "[GPT END]") {
                     eventSource.close();
                 } else {
-                    const botMessage = document.createElement("p");
-                    botMessage.classList.add("message", "bot-message");
-                    botMessage.textContent += data; // Append each character
-                    responseContainer.appendChild(botMessage);
+                    responseText += data;
+                    botMessageBubble.textContent = responseText; // Update the bubble with the accumulated text
                 }
             };
 

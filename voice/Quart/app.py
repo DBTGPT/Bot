@@ -6,15 +6,12 @@ from dotenv import load_dotenv
 import azure.cognitiveservices.speech as speechsdk
 import httpx
 import asyncio
-import json
-import
+import time
 
 load_dotenv()
 
 app = Quart(__name__, static_folder='static')
 request_queue = asyncio.Queue()
-RATE_LIMIT_INTERVAL = 30  # seconds
-last_request_time = 0
 
 # Setup speech synthesizer
 speech_config = speechsdk.SpeechConfig(
@@ -38,18 +35,14 @@ speech_config.set_properties_by_name(properties)
 active_sessions = {}
 
 async def handle_request(user_input, session_id):
-    global last_request_time
-    current_time = time.time()
-    if current_time - last_request_time < RATE_LIMIT_INTERVAL:
-        await asyncio.sleep(RATE_LIMIT_INTERVAL - (current_time - last_request_time))
     # Simulate API call
     response = await api_call(user_input)
-    last_request_time = time.time()
     return response
 
 async def api_call(user_input):
     # Simulate a call to the AI API
-    await asyncio.sleep(2)  # simulate network delay
+    print(f"Simulating API call for input: {user_input}")
+    await asyncio.sleep(.5)  # simulate network delay
     return f"Response to '{user_input}'"
 
 @app.route('/')
@@ -61,7 +54,8 @@ async def start_response():
     data = await request.json
     user_input = data['input']
     use_tts = data.get('use_tts', False)
-    session_id = str(int(time.time()))
+    session_id = str(uuid.uuid4())  # Use UUID for session IDs to avoid conflicts
+    print(f"Received start response request: {user_input}, session: {session_id}")
     await request_queue.put((user_input, session_id))
     return jsonify({'session_id': session_id})
 
@@ -90,6 +84,7 @@ async def get_response(session_id):
     async def event_stream():
         while True:
             user_input, sid = await request_queue.get()
+            print(f"Processing session {sid}, expected session {session_id}")
             if sid == session_id:
                 response = await handle_request(user_input, session_id)
                 for char in response:

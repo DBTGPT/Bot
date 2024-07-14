@@ -8,3 +8,4 @@ openai
 threading
 queue
 AzureOpenAI
+azure-cognitiveservices-speech

@@ -6,10 +6,15 @@ from dotenv import load_dotenv
 import azure.cognitiveservices.speech as speechsdk
 import httpx
 import asyncio
+import json
+import
 
 load_dotenv()
 
 app = Quart(__name__, static_folder='static')
+request_queue = asyncio.Queue()
+RATE_LIMIT_INTERVAL = 30  # seconds
+last_request_time = 0
 
 # Setup speech synthesizer
 speech_config = speechsdk.SpeechConfig(
@@ -32,6 +37,21 @@ speech_config.set_properties_by_name(properties)
 
 active_sessions = {}
 
+async def handle_request(user_input, session_id):
+    global last_request_time
+    current_time = time.time()
+    if current_time - last_request_time < RATE_LIMIT_INTERVAL:
+        await asyncio.sleep(RATE_LIMIT_INTERVAL - (current_time - last_request_time))
+    # Simulate API call
+    response = await api_call(user_input)
+    last_request_time = time.time()
+    return response
+
+async def api_call(user_input):
+    # Simulate a call to the AI API
+    await asyncio.sleep(2)  # simulate network delay
+    return f"Response to '{user_input}'"
+
 @app.route('/')
 async def index():
     return await render_template('index.html')
@@ -41,13 +61,9 @@ async def start_response():
     data = await request.json
     user_input = data['input']
     use_tts = data.get('use_tts', False)
-    session_id = str(uuid.uuid4())
-    active_sessions[session_id] = {
-        'user_input': user_input,
-        'response_text': '',
-        'use_tts': use_tts
-    }
-    return jsonify({"session_id": session_id}), 200
+    session_id = str(int(time.time()))
+    await request_queue.put((user_input, session_id))
+    return jsonify({'session_id': session_id})
 
 async def fetch_stream(session, user_input):
     url = os.getenv("AZURE_OPENAI_API_ENDPOINT") + "/openai/deployments/gpt-4o/chat/completions?api-version=2024-02-01"
@@ -71,44 +87,20 @@ async def fetch_stream(session, user_input):
 
 @app.route('/api/get-response/<session_id>', methods=['GET'])
 async def get_response(session_id):
-    if session_id not in active_sessions:
-        return jsonify({"error": "Invalid session ID"}), 400
-
-    async def generate():
-        try:
-            session = active_sessions[session_id]
-            user_input = session['user_input']
-            use_tts = session['use_tts']
-            print(f"User input: {user_input}")
-
-            async for line in fetch_stream(session, user_input):
-                chunk = line.strip()
-                print(f"Raw chunk: {chunk}")  # Debugging: print the raw chunk
-                if chunk == "data: [DONE]":
-                    break
-                if chunk.startswith("data:"):
-                    chunk_json = chunk[len("data:"):].strip()
-                    try:
-                        chunk_data = json.loads(chunk_json)
-                        if "choices" in chunk_data and len(chunk_data["choices"]) > 0:
-                            chunk_text = chunk_data["choices"][0].get("delta", {}).get("content", "")
-                            if chunk_text:
-                                print(f"Chunk text: {chunk_text}")
-                                session['response_text'] += chunk_text
-                                yield f"data: {chunk_text}\n\n"
-                                if use_tts:
-                                    await speech_synthesizer.speak_text_async(chunk_text)
-                    except json.JSONDecodeError as e:
-                        print(f"JSON decode error: {e}")  # Debugging: print JSON decode errors
-            print("[GPT END]")
-            yield "data: [GPT END]\n\n"
-        except Exception as e:
-            print(f"Error: {e}")
-            yield f"data: Error: {str(e)}\n\n"
-        finally:
-            del active_sessions[session_id]
-
-    return Response(generate(), content_type='text/event-stream')
+    async def event_stream():
+        while True:
+            user_input, sid = await request_queue.get()
+            if sid == session_id:
+                response = await handle_request(user_input, session_id)
+                for char in response:
+                    yield f"data: {char}\n\n"
+                    await asyncio.sleep(0.05)  # Typing effect speed
+                yield "data: [GPT END]\n\n"
+                break
+            else:
+                await request_queue.put((user_input, sid))
+                await asyncio.sleep(1)
+    return Response(event_stream(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
     app.run(debug=True)

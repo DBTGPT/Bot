@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     const botMessage = document.createElement("p");
                     botMessage.classList.add("message", "bot-message");
-                    botMessage.textContent = data;
+                    botMessage.textContent += data; // Append each character
                     responseContainer.appendChild(botMessage);
                 }
             };

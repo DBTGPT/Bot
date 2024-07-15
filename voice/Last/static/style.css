@@ -1,0 +1,31 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+
+.container {
+    text-align: center;
+}
+
+#mic-button {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 3rem;
+}
+
+#mic-button.blinking {
+    animation: blink 1s infinite;
+    color: red;
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+}

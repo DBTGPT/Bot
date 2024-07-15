@@ -13,3 +13,5 @@ asyncio
 concurrent.futures
 logging
 concurrent.future
+quart
+aiohttp

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quart Chatbot</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div id="chat-container" aria-live="polite">
+        <div id="chat-window">
+            <div id="output" aria-label="Chat messages"></div>
+            <div id="feedback" aria-live="assertive"></div>
+        </div>
+        <div id="input-container">
+            <button id="record-button" aria-pressed="false">🎤 Start Recording</button>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
+</body>
+</html>
